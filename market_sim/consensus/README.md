@@ -1,32 +1,32 @@
 # 🧠 Dolev-Strong Protocol Simulation
 
-Este módulo implementa una simulación del protocolo de consenso Dolev-Strong descrito en el libro _Foundations of Distributed Consensus and Blockchains_ de Elaine Shi.
+This module implements a simulation of the **Dolev-Strong consensus protocol** described in the book _Foundations of Distributed Consensus and Blockchains_ by Elaine Shi.
 
 ---
 
-## 📁 Estructura del proyecto
+## 📁 Project Structure
 
 ```
 market_sim/
 ├── consensus/
-│   ├── dolev_strong.py         # Lógica del protocolo
-│   ├── test_dolev_strong.py   # Pruebas unitarias con unittest
-│   └── visualize_consensus.py # Visualización de resultados
+│   ├── dolev_strong.py         # Protocol logic
+│   ├── test_dolev_strong.py    # Unit tests using unittest
+│   └── visualize_consensus.py  # Visualization of results
 ```
 
 ---
 
-## ⚙️ Cómo funciona
+## ⚙️ How It Works
 
-El protocolo permite que un grupo de nodos (algunos potencialmente corruptos) lleguen a un consenso sobre un bit binario enviado por un nodo inicial (el "sender").
+The protocol allows a group of nodes (some potentially faulty) to reach consensus on a binary value sent by an initial node (the "sender").
 
-- **f + 1 rondas** garantizan el consenso entre nodos honestos.
-- **Firmas digitales simuladas** con listas de ID.
-- **Detecta fallos bizantinos** y evita la manipulación del mensaje.
+- **f + 1 rounds** guarantee consensus among honest nodes.
+- **Simulated digital signatures** using ID lists.
+- **Byzantine faults detection** prevents message tampering.
 
 ---
 
-## ▶️ Ejecución
+## ▶️ Running the Simulation
 
 ```bash
 python visualize_consensus.py
@@ -34,7 +34,7 @@ python visualize_consensus.py
 
 ---
 
-## 🧪 Tests
+## 🧪 Running Tests
 
 ```bash
 python -m unittest test_dolev_strong.py
@@ -42,14 +42,14 @@ python -m unittest test_dolev_strong.py
 
 ---
 
-## 📚 Basado en
+## 📚 Based On
 
-> **Capítulo 3: Byzantine Broadcast and the Dolev-Strong Protocol**  
+> **Chapter 3: Byzantine Broadcast and the Dolev-Strong Protocol**  
 > Foundations of Distributed Consensus and Blockchains — Elaine Shi
 
 ---
 
-## 📩 Contacto
+## 📩 Contact
 
-Simulación desarrollada como parte de la prueba técnica para Torbellino Tech.  
-Para más información: [juan.diez@torbellino.tech](mailto:juan.diez@torbellino.tech)
+Simulation developed as part of the technical test for Torbellino Tech.  
+For more information: [juan.diez@torbellino.tech](mailto:juan.diez@torbellino.tech)
