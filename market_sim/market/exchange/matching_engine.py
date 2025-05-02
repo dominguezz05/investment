@@ -141,6 +141,13 @@ class MatchingEngine:
         maker_order.status = OrderStatus.FILLED if maker_order.remaining_quantity == 0 else OrderStatus.PARTIAL
         maker_order.updated_at = utc_now()
     
+def set_initial_price(self, price: Decimal) -> None:
+   
+    self.last_price = price 
+    self.order_book.bids = {price * Decimal("0.99"): []}
+    self.order_book.asks = {price * Decimal("1.01"): []}
+
+
     def cancel_order(self, order_id: str) -> Optional[Order]:
         """Cancel an order in the book."""
         # Search in both bid and ask books
@@ -172,3 +179,4 @@ class MatchingEngine:
                       for price, orders in self.order_book.asks.items()))[:depth]
         
         return bids, asks 
+    

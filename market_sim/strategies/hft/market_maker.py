@@ -48,6 +48,9 @@ class MarketMaker(BaseAgent):
         }
         self.last_order_update = utc_now()
         self.update_interval = timedelta(milliseconds=100)  # 100ms update frequency
+        # Price consensus cache
+        self.consensus_prices: Dict[str, Decimal] = {}
+
         
     def calculate_volatility(self, symbol: str) -> Decimal:
         """Calculate recent price volatility."""
@@ -114,8 +117,12 @@ class MarketMaker(BaseAgent):
             return
             
         # Calculate mid price
-        mid_price = (Decimal(str(bids[0][0])) + Decimal(str(asks[0][0]))) / 2
-        
+        mid_price = self.consensus_prices.get(
+           symbol,
+           (Decimal(str(bids[0][0])) + Decimal(str(asks[0][0]))) / 2
+        )
+
+        print(f"[{utc_now()}] MarketMaker using consensus price for {symbol}: {mid_price}")
         # Store price for volatility calculation
         self.last_prices[symbol].append(mid_price)
         if len(self.last_prices[symbol]) > self.volatility_window:
@@ -181,3 +188,7 @@ class MarketMaker(BaseAgent):
             if quotes[side]:
                 self.cancel_all_orders()
                 quotes[side] = None 
+
+    def update_consensus_price(self, symbol: str, price: Decimal) -> None:
+        self.consensus_prices[symbol] = price
+

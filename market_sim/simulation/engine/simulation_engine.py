@@ -169,14 +169,27 @@ class MarketSimulation:
         
         self.logger.info("Simulation completed")
         return self._get_simulation_results()
-    
+
     def _process_event(self, event: SimulationEvent) -> None:
         """Process a simulation event."""
         if event.event_type == 'order':
             self.process_order(event.data)
+
         elif event.event_type == 'market_event':
+            if event.data.get("type") == "set_initial_price":
+                symbol = event.data["symbol"]
+                price = Decimal(str(event.data["price"]))
+                if symbol in self.exchanges:
+                    self.exchanges[symbol].set_initial_price(price)
+                    for agent in self.agents.values():
+                      if hasattr(agent, "update_consensus_price"):
+                          agent.update_consensus_price(symbol, price)
+                    self.logger.info(f"Initial price for {symbol} set to {price}")
+                return  # Important to return so no further event handling is attempted
+
             self._handle_market_event(event.data)
-        # Add more event types as needed
+
+
     
     def _handle_market_event(self, event_data: Dict) -> None:
         """Handle various market events."""

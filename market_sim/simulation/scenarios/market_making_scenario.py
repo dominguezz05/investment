@@ -12,12 +12,55 @@ from decimal import Decimal
 import random
 from typing import List, Dict
 import numpy as np
+import matplotlib.pyplot as plt
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
+
 
 from core.models.base import Asset, OrderSide, OrderType, Trade
 from market.agents.base_agent import BaseAgent
 from strategies.hft.market_maker import MarketMaker
 from simulation.engine.simulation_engine import MarketSimulation
 from core.utils.time_utils import utc_now
+from consensus.price_consensus import run_consensus  
+
+
+def plot_consensus_evolution(symbol: str, consensus_history: List[List[float]]):
+    rounds = list(range(1, len(consensus_history)+1))
+    values = [np.mean(r) for r in consensus_history]
+
+    plt.figure(figsize=(8, 4))
+    plt.plot(rounds, values, marker='o')
+    plt.title(f"Consensus Evolution for {symbol}")
+    plt.xlabel("Round")
+    plt.ylabel("Consensus Price")
+    plt.grid(True)
+    plt.show()
+
+
+def get_consensus_prices(symbols: List[str], num_nodes: int = 5, f: int = 1) -> Dict[str, float]:
+    """
+   Execute price consensus for each symbol.
+    It simulates that each node gives a random price observation around a base value.
+    """
+    base_prices = {"AAPL": 150, "MSFT": 320, "GOOGL": 2800}  
+    consensus_result = {}
+
+    for symbol in symbols:
+        sender_input = base_prices.get(symbol, 100)  # initial value
+        corrupt_nodes = random.sample(range(num_nodes), k=f) if f > 0 else []
+        consensus_prices = run_consensus(
+            symbol=symbol,
+            n=num_nodes,
+            f=f,
+            sender_input=sender_input,
+            corrupt_nodes=corrupt_nodes
+        )
+        agreed_price = max(set(consensus_prices), key=consensus_prices.count)
+        consensus_result[symbol] = agreed_price
+
+    return consensus_result
 
 class RandomTrader(BaseAgent):
     """Simple trader that randomly places market orders."""
@@ -151,6 +194,35 @@ def create_market_making_scenario(
                     symbol, OrderSide.SELL, Decimal('90')
                 )
             )
+    consensus_prices = get_consensus_prices(symbols)
+
+    for symbol in symbols:
+        init_price = consensus_prices.get(symbol, 100)
+        sim.schedule_event(
+            timestamp=start_time,
+            event_type="market_event",
+            data={
+                "type": "set_initial_price",
+                "symbol": symbol,
+                "price": init_price
+            }
+        )
+        
+    # Add new consensus rounds every 15 minutes
+    for t in range(1, int(duration.total_seconds() // 900)):  # 15 mins = 900s
+     round_time = start_time + timedelta(seconds=900 * t)
+     updated_prices = get_consensus_prices(symbols)
+     for symbol in symbols:
+        sim.schedule_event(
+            timestamp=round_time,
+            event_type="market_event",
+            data={
+                "type": "set_initial_price",
+                "symbol": symbol,
+                "price": updated_prices[symbol]
+            }
+        )
+
 
     # Add market events if requested
     #if include_market_events:
@@ -205,7 +277,6 @@ def _add_market_events(
                     'new_volatility': new_volatility
                 }
             )
-
 if __name__ == '__main__':
     # Run a sample simulation
     start_time = utc_now()
@@ -238,3 +309,20 @@ if __name__ == '__main__':
             print(f"Average price: ${np.mean(prices):.2f}")
             print(f"Price range: ${min(prices):.2f} - ${max(prices):.2f}")
             print(f"Price volatility: {np.std(prices):.4f}") 
+
+    # Visualize consensus evolution for AAPL (example)
+    from consensus.price_consensus import run_consensus  # asegúrate de importar correctamente
+
+    print("\nRunning separate consensus simulation for visualization...")
+    history = []
+    for _ in range(10):  # 10 rounds
+        consensus_round = run_consensus(
+            symbol='AAPL',
+            n=7,
+            f=2,
+            sender_input=150,
+            corrupt_nodes=[1, 2]  # Simulating manipulation
+        )
+        history.append(consensus_round)
+
+    plot_consensus_evolution("AAPL", history)
