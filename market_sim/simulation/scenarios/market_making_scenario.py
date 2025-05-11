@@ -1,10 +1,13 @@
 """
-Market Making Scenario
+Market Making Scenario with Network Delay (∆)
 
-This scenario simulates a market with:
-1. One market maker providing liquidity
-2. Multiple random traders creating market pressure
-3. Periodic market events to test strategy robustness
+Simulates a dynamic market with:
+1. A market maker providing liquidity.
+2. Random traders creating market pressure.
+3. A consensus mechanism (Dolev-Strong) affected by network delay (∆).
+
+Consensus prices are calculated periodically with a configurable delay to evaluate
+robustness under distributed conditions.
 """
 
 from datetime import datetime, timedelta
@@ -23,7 +26,8 @@ from market.agents.base_agent import BaseAgent
 from strategies.hft.market_maker import MarketMaker
 from simulation.engine.simulation_engine import MarketSimulation
 from core.utils.time_utils import utc_now
-from consensus.price_consensus import run_consensus  
+from consensus.price_consensus import run_consensus_with_delay
+
 
 
 def plot_consensus_evolution(symbol: str, consensus_history: List[List[float]]):
@@ -39,28 +43,41 @@ def plot_consensus_evolution(symbol: str, consensus_history: List[List[float]]):
     plt.show()
 
 
-def get_consensus_prices(symbols: List[str], num_nodes: int = 5, f: int = 1) -> Dict[str, float]:
+def get_consensus_prices(symbols: List[str], num_nodes: int = 5, f: int = 1, delta_ms: int = 0, base_prices: Dict[str, float] = None) -> Dict[str, float]:
+ 
+
     """
-   Execute price consensus for each symbol.
-    It simulates that each node gives a random price observation around a base value.
+    Execute price consensus with simulated network delay.
+    
+    Parameters:
+        symbols: List of asset symbols.
+        num_nodes: Total number of consensus nodes.
+        f: Number of Byzantine faulty nodes.
+        delta_ms: Network delay in milliseconds.
+        base_prices: Dictionary of initial prices.
+
+    Returns:
+        Dictionary mapping each symbol to its agreed consensus price.
     """
-    base_prices = {"AAPL": 150, "MSFT": 320, "GOOGL": 2800}  
+    base_prices = base_prices or {"AAPL": 150, "MSFT": 320, "GOOGL": 2800}
     consensus_result = {}
 
     for symbol in symbols:
-        sender_input = base_prices.get(symbol, 100)  # initial value
+        sender_input = base_prices.get(symbol, 100)
         corrupt_nodes = random.sample(range(num_nodes), k=f) if f > 0 else []
-        consensus_prices = run_consensus(
+        consensus_prices = run_consensus_with_delay(
             symbol=symbol,
             n=num_nodes,
             f=f,
             sender_input=sender_input,
-            corrupt_nodes=corrupt_nodes
+            corrupt_nodes=corrupt_nodes,
+            delta_ms=delta_ms
         )
         agreed_price = max(set(consensus_prices), key=consensus_prices.count)
         consensus_result[symbol] = agreed_price
 
     return consensus_result
+
 
 class RandomTrader(BaseAgent):
     """Simple trader that randomly places market orders."""
@@ -194,7 +211,12 @@ def create_market_making_scenario(
                     symbol, OrderSide.SELL, Decimal('90')
                 )
             )
-    consensus_prices = get_consensus_prices(symbols)
+    consensus_prices = get_consensus_prices(symbols, num_nodes=7, f=2, delta_ms=500)  # Por ejemplo, 500 ms de retardo
+    print("\n Consensus Prices with ∆ = 500ms:")
+    for symbol, price in consensus_prices.items():
+      print(f" - {symbol}: ${price:.2f}")
+
+
 
     for symbol in symbols:
         init_price = consensus_prices.get(symbol, 100)
@@ -211,7 +233,12 @@ def create_market_making_scenario(
     # Add new consensus rounds every 15 minutes
     for t in range(1, int(duration.total_seconds() // 900)):  # 15 mins = 900s
      round_time = start_time + timedelta(seconds=900 * t)
-     updated_prices = get_consensus_prices(symbols)
+     updated_prices = get_consensus_prices(symbols, num_nodes=7, f=2, delta_ms=500)
+     
+     print(f"\n🕒 Consensus at {round_time.strftime('%H:%M')} (∆ = 500ms):")
+    for symbol, price in updated_prices.items():
+     print(f"   {symbol}: ${price:.2f}")
+
      for symbol in symbols:
         sim.schedule_event(
             timestamp=round_time,
@@ -310,19 +337,4 @@ if __name__ == '__main__':
             print(f"Price range: ${min(prices):.2f} - ${max(prices):.2f}")
             print(f"Price volatility: {np.std(prices):.4f}") 
 
-    # Visualize consensus evolution for AAPL (example)
-    from consensus.price_consensus import run_consensus  # asegúrate de importar correctamente
 
-    print("\nRunning separate consensus simulation for visualization...")
-    history = []
-    for _ in range(10):  # 10 rounds
-        consensus_round = run_consensus(
-            symbol='AAPL',
-            n=7,
-            f=2,
-            sender_input=150,
-            corrupt_nodes=[1, 2]  # Simulating manipulation
-        )
-        history.append(consensus_round)
-
-    plot_consensus_evolution("AAPL", history)
